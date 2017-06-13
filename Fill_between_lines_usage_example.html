@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta charset="UTF-8">
+</head>
+
+<body>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.13/c3.js"></script>
+<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.13/c3.css">
+<script   src="https://code.jquery.com/jquery-3.1.1.min.js"   integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="   crossorigin="anonymous"></script>
+
+<style>
+#fill-line .c3-circles-yellow {
+    display: none;
+}
+
+#fill-line .c3-circles-green {
+    display: none;
+}
+
+#fill-line .c3-circles-red {
+    display: none;
+}
+
+#fill-line .c3-circles-bottom {
+    display: none;
+}
+
+#fill-line .c3-line-target {  stroke-dasharray: 5,5;}
+
+path.areayellow { 
+  fill: yellow;
+  opacity: 0.2;
+}
+
+path.areagreen {
+  fill: green;
+  opacity: 0.2;
+}
+
+path.areared {
+  fill: red;
+  opacity: 0.2;
+}
+</style> 
+
+<div>
+My chart: fill between lines C3.js + D3.js  
+<div id="chart-container">
+<div id="fill-line"> </div>
+</div>
+
+<script>
+var items = 
+[{"id":269,"description":null,"status":null,"cf_3":null,"cf_4":"0.0","cf_5":"-10.0","cf_6":"3.0","cf_7":"2017-01-02"},
+{"id":270,"description":"sample text","status":null,"cf_3":null,"cf_4":"0.0","cf_5":"-13.0","cf_6":"-5.0","cf_7":"2017-01-16"},
+{"id":271,"description":null,"status":null,"cf_3":null,"cf_4":"2.0","cf_5":"0.0","cf_6":"3.0","cf_7":"2017-01-30"},
+{"id":272,"description":"sample text","status":"Green","cf_3":"-7.44","cf_4":"2.0","cf_5":"0.0","cf_6":"3.0","cf_7":"2017-02-13"},
+{"id":273,"description":null,"status":"Green","cf_3":"-8.0","cf_4":"0.0","cf_5":"0.0","cf_6":"3.0","cf_7":"2017-02-27"},
+{"id":274,"description":null,"status":"Yellow","cf_3":"3.0","cf_4":"0.0","cf_5":"0.0","cf_6":"6.0","cf_7":"2017-03-13"},
+{"id":275,"description":null,"status":"Red","cf_3":"14.9","cf_4":"0.0","cf_5":"0.0","cf_6":"3.0","cf_7":"2017-03-27"},
+{"id":276,"description":"sample text","status":"Green","cf_3":"-14.0","cf_4":"0.0","cf_5":"0.0","cf_6":"3.0","cf_7":"2017-04-10"},
+{"id":277,"description":null,"status":"Green","cf_3":"-10.5","cf_4":"0.0","cf_5":"0.0","cf_6":"3.0","cf_7":"2017-04-24"},
+{"id":278,"description":null,"status":null,"cf_3":null,"cf_4":"0.0","cf_5":"0.0","cf_6":"3.0","cf_7":"2017-05-08"},
+{"id":279,"description":null,"status":null,"cf_3":null,"cf_4":"0.0","cf_5":"0.0","cf_6":"3.0","cf_7":"2017-05-22"},
+{"id":280,"description":null,"status":null,"cf_3":null,"cf_4":"0.0","cf_5":"0.0","cf_6":"3.0","cf_7":"2017-06-05"},
+{"id":281,"description":null,"status":null,"cf_3":null,"cf_4":"0.0","cf_5":"0.0","cf_6":"3.0","cf_7":"2017-06-19"}];
+
+var chartdiv = "fill-line"; 
+var unit = "count"; // as y label
+drawOneFillLineChart(chartdiv, items); 
+
+
+//************functions for HTML DOM ***********************************************************************             
+function drawOneFillLineChart(chartdiv, items, unit){
+
+var chartid = `#${chartdiv}`; 
+var baseurl = ""; // the base url for each point, left as empty, enable it if needed 
+
+var lastYTick = "... ";
+var timeformat = "%Y-%m-%d";
+
+var itemsdata = [];
+var urldict = {};
+var desdict = {};
+var dateformat = d3.time.format(timeformat);
+
+var greenmax = d3.max(items, function(d){return parseFloat(d.cf_5);});
+var yellowmax = d3.max(items, function(d){return parseFloat(d.cf_6);});
+var valuemax = d3.max(items, function(d){return parseFloat(d.cf_3);});
+var targetmax = d3.max(items, function(d){return parseFloat(d.cf_4);});
+
+var greenmin = d3.min(items, function(d){return parseFloat(d.cf_5);});
+var yellowmin = d3.min(items, function(d){return parseFloat(d.cf_6);});
+var valuemin = d3.min(items, function(d){return parseFloat(d.cf_3);});
+var targetmin = d3.min(items, function(d){return parseFloat(d.cf_4);});
+
+greenmin = (greenmin === undefined)? Infinity: greenmin; 
+yellowmin = (yellowmin === undefined)? Infinity: yellowmin;
+valuemin = (valuemin === undefined)? Infinity: valuemin;
+targetmin = (targetmin === undefined)? Infinity: targetmin;
+
+var bottomvalue = Math.min(greenmin, yellowmin, valuemin, targetmin);
+if (isNaN(bottomvalue) || bottomvalue == Infinity)
+	bottomvalue = 0;
+
+var topvalue = 0;
+topvalue = findTopValue(yellowmax ,valuemax);
+
+if (topvalue === undefined)
+	topvalue = bottomvalue; 
+	
+if (bottomvalue != 0)
+        bottomvalue = bottomvalue  - (topvalue - bottomvalue)/10; 
+else
+        bottomvalue = - topvalue * 0.1;
+
+if (bottomvalue == topvalue) // all are zero 
+{
+	topvalue = 1;
+	bottomvalue = -1; 
+
+}
+
+jQuery.each(items, function(i, val){
+	var period = val['cf_7'];
+	var status = val['status'];
+	var timestamp = dateformat.parse(val['cf_7']);
+	var yellow = (val['cf_6'] === null ) ? 0 : val['cf_6'];
+	var green = (val['cf_5']=== null)? 0: val['cf_5'];
+	var target = val['cf_4'];
+	var realvalue = val['cf_3'];
+	var realurl = baseurl + val['id'];  
+	var y = (val['cf_6'] === null)? topvalue: val['cf_6']; 
+	var g = (val['cf_5'] === null)? bottomvalue: val['cf_5']; 
+	if (val['cf_5'] === null && val['cf_6'] === null)
+	{	y = bottomvalue; g= y; } 
+	itemsdata.push({"date":timestamp, "red": topvalue, "yellow": y, "green": g, "target": target, "value": realvalue, "bottom": bottomvalue, "status":status});
+	
+	urldict[period] = realurl; 
+	desdict[period] = val['description']; 
+});
+
+
+//VERY IMPORTANT!!! to be able to plot areas correctly, the data needs to be sorted on x axis 
+itemsdata.sort(function(a, b){return a['date'] - b['date'];}); 
+
+if(itemsdata.length > 0)
+{
+
+var chart_values = ['green', 'yellow', 'red', 'target', 'value'];
+
+var linechart = c3.generate({
+	bindto: chartid,
+        data: {
+        json: itemsdata,
+        xFormat: timeformat,
+        type: 'line',
+        keys: {x: 'date', value: chart_values},
+        colors: { red: '#ff0000', green: '#33cc33', yellow: '#ffbf00',target: '#0101DF',
+		value: function(d) {
+			if (d.index != undefined && d.value != null)
+			{	
+				var temp = itemsdata[d.index];
+				var vcolor = '#000000'; 
+				var kpistatus = temp.status;
+				if (kpistatus == "Green" )
+					vcolor = '#33cc33'; 
+				if (kpistatus == "Yellow" )
+					vcolor = '#ffbf00';
+				if (kpistatus == "Red")
+					vcolor = '#ff0000';
+				return vcolor;  
+                        }
+                        }
+		},
+        order: null,
+        onclick: function(d){
+                if(d.name === "value" || d.name === "target")
+                       // location.href = findValueByKey(urldict, d.x, dateformat); 
+					   alert("set up the baseurl and then enable this function!!"); 
+        	}
+        },
+        subchart: { 
+		show: true,
+		onbrush: function( domain ) { 
+		 	removeAreas(chartid);
+			fillAreas(chartid, linechart, itemsdata, topvalue, bottomvalue);
+		} 
+	},
+        axis: {
+                x: {type: 'timeseries', tick:{format: timeformat}},
+                y: {
+                        tick:{format: function(d){
+                                if (d >= topvalue)
+                                        return lastYTick;
+                                else
+                                        return (unit === "percent")? Number(d * 100).toFixed(2): Number(d).toFixed(2);
+                        	},
+			},
+                        max: topvalue,
+                        min: bottomvalue,
+                        padding:{top:0, bottom:0},
+                        label: unit,
+                },
+        },
+	tooltip:{
+                format: {
+                        title: function(d) {
+                                var desc = findValueByKey(desdict, d, dateformat);
+                                if (desc == null)
+                                        desc = "";
+                                else if (desc.length > 20)
+                                        desc = desc.substring(0, 20) + "...";
+                                return dateformat(d) + ", description:" + desc;
+                        },
+			value: function(value, ratio, id){
+                         if (unit === "percent")
+                                value = value * 100;
+                         if(id === "red")
+                         	value = "... ";
+                         return value + " " + unit;
+
+                        }
+		},
+	},
+	line: { 	connectNull: true },
+	point: {
+		r: function(d){
+			if (d.id === 'value' && d.value !== null)
+			{
+				if (isOnlyPoint(d.index, itemsdata))	
+					return 6;
+				else
+					return 4; 
+			} 
+			else 
+				return 2.5; 
+			 
+		}
+	},
+});
+
+
+fillAreas(chartid, linechart, itemsdata, topvalue, bottomvalue);
+
+jQuery( window ).resize(function() {
+	clearTimeout(jQuery.data(this, 'resizeTimer'));
+	jQuery.data(this, 'resizeTimer', setTimeout(function() {
+		removeAreas(chartid);
+		fillAreas(chartid, linechart, itemsdata, topvalue, bottomvalue);
+	}, 200));  // avoid too frequent resizing 
+});
+
+linechart.internal.main.on('click', function(){
+	var coords = d3.mouse(this); 
+	var xCoords = coords[0];
+	var xValue = linechart.internal.x.invert(xCoords); 
+	//location.href = findNearestValueByKey(urldict, xValue);
+	alert("set up the baseurl and then enable this function!!"); 
+});
+
+}
+}
+
+//********************** functions ********************************************************************************************
+function findTopValue(val1, val2) // find the max of the two, put addons on the max * 1.1
+{       
+        var topvalue = (val2 === undefined)? val1 : val2;        
+        topvalue = Number((topvalue * 1.10).toFixed(5));        
+        if(val1 >= topvalue)                
+        topvalue = Number((val1 * 1.10).toFixed(5));        
+        return topvalue;
+}
+
+function findValueByKey(items, xvalue, dateformat) // find value by key from dictionary 
+{
+        var result;
+        var key = dateformat(xvalue);
+        if (items.hasOwnProperty(key))
+                result = items[key];
+        return result;
+}
+
+
+function findNearestValueByKey(urldict, xvalue){ // find the closeset/nearest point 
+        var maxDiff = Infinity;
+        var result = null;
+
+        for (var key in urldict)
+        {
+                date1 =  new Date(key);
+                diff = Math.abs(date1 - xvalue);
+                if(diff < maxDiff)
+                {
+                        maxDiff = diff;
+                        result = urldict[key];
+                }
+        }
+        return result;
+}
+
+
+function isOnlyPoint(index, jsonlist) // check if this is the only non-null point in the series, if so display it with bigger radius 
+{
+        var result = true;
+        for (var key in jsonlist)
+        {
+                if ( key != index && jsonlist[key].value !== null)
+                        result =  false;
+        }
+        return result;
+}
+
+function removeAreas(chartid) // after each resize or filter/range, the area needs to be removed and redraw
+{
+         var svg = d3.select(chartid + " svg");
+         svg.selectAll(".areayellow").remove();
+         svg.selectAll(".areared").remove();
+         svg.selectAll(".areagreen").remove();
+}
+
+
+function fillAreas(chartid, chart, chartdata, topvalue, bottomvalue){ // fill the area based on the value 
+        var indexies = d3.range( chartdata.length );
+        var yscale = chart.internal.y;
+        var xscale = chart.internal.x;
+        var yellowarea = d3.svg.area()
+                 .interpolate("linear")
+                 .x(function(d) {return xscale(new Date(chartdata[d].date)); })
+                 .y0(function(d) { return yscale(chartdata[d].green); })
+                 .y1(function(d) { return yscale(chartdata[d].yellow); });
+
+         var greenarea = d3.svg.area()
+                 .interpolate("linear")
+                 .x(function(d) {return xscale(new Date(chartdata[d].date)); })
+                 .y0(function(d) { return yscale(bottomvalue); })
+                 .y1(function(d) { return yscale(chartdata[d].green); });
+
+         var redarea = d3.svg.area()
+                 .interpolate("linear")
+                 .x(function(d) {return xscale(new Date(chartdata[d].date)); })
+                 .y0(function(d) { return  yscale(topvalue); })
+                 .y1(function(d) { return  yscale(chartdata[d].yellow); });
+
+
+        d3.select(chartid + " svg g .c3-grid").append('path')
+                .datum(indexies)
+                .attr('class', 'areayellow')
+                .attr('d', yellowarea);
+
+        d3.select(chartid + " svg g .c3-grid").append('path')
+                .datum(indexies)
+                .attr('class', 'areagreen')
+                .attr('d', greenarea);
+
+        d3.select(chartid + " svg g .c3-grid").append('path')
+                .datum(indexies)
+                .attr('class', 'areared')
+                .attr('d', redarea);
+
+}
+</script>
+</body>
+</html>

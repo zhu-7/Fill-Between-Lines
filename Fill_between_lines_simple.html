@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta charset="UTF-8">
+</head>
+
+<body>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.13/c3.js"></script>
+<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.13/c3.css">
+
+<style>
+path.area { 
+    stroke: lightgreen;
+	  fill: #e6ffe6;
+    opacity: 0.9
+}
+</style> 
+
+<div id="chart"></div>
+
+<script>
+var items=[{
+	"cf_5": "-10.0",
+	"cf_6": "3.0",
+	"cf_7": "2017-01-02"
+},
+{
+	"cf_5": "-13.0",
+	"cf_6": "-5.0",
+	"cf_7": "2017-01-16"
+},
+{
+	"cf_5": "0.0",
+	"cf_6": "3.0",
+	"cf_7": "2017-01-30"
+},
+{
+	"cf_5": "0.0",
+	"cf_6": "3.0",
+	"cf_7": "2017-02-13"
+},
+{
+	"cf_5": "0.0",
+	"cf_6": "3.0",
+	"cf_7": "2017-02-27"
+},
+{
+	"cf_5": "0.0",
+	"cf_6": "3.0",
+	"cf_7": "2017-03-13"
+},
+{
+	"cf_5": "0.0",
+	"cf_6": "3.0",
+	"cf_7": "2017-03-27"
+},
+{
+	"cf_5": "0.0",
+	"cf_6": "3.0",
+	"cf_7": "2017-04-10"
+},
+{
+	"cf_5": "0.0",
+	"cf_6": "3.0",
+	"cf_7": "2017-04-24"
+}];
+var timeformat = "%Y-%m-%d";
+var dateformat = d3.time.format(timeformat);
+
+var linechart = c3.generate({
+	bindto: "#chart",
+	data: {
+	json: items,
+	xFormat: timeformat,
+	type: 'line',
+	keys: {x: 'cf_7', value: ['cf_5', 'cf_6']},
+	colors: { cf_5: '#ff0000', cf_6: '#33cc33'},
+	},
+	axis: {
+		x: {type: 'timeseries', tick:{format: timeformat}},
+	},
+	line: {connectNull: true}
+});
+
+function fillArea(){
+	var indexies = d3.range( items.length );
+	var yscale = linechart.internal.y; 			  
+	var xscale = linechart.internal.x; 
+
+    var area = d3.svg.area()
+				 .interpolate("linear")
+                 .x(function(d) {return xscale(new Date(items[d].cf_7)); })
+                 .y0(function(d) { return yscale(items[d].cf_5); })
+                 .y1(function(d) { return yscale(items[d].cf_6); });  
+				 
+	d3.select("#chart svg g").append('path')
+      .datum(indexies)
+      .attr('class', 'area')
+      .attr('fill', 'red')
+      .attr('d', area);
+
+}  
+fillArea();
+
+</script>
+</body>
+</html>
